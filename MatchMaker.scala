@@ -62,7 +62,7 @@
 ******************************************************************************
 */
 
-
+import scala.collection.mutable.ArrayBuffer
 import scala.actors.threadpool.Executors
 import scala.actors.threadpool.Callable
 
@@ -74,8 +74,11 @@ import java.io._
 object MatchMaker{
 	def main(args: Array[String]){
 
-		var listings: List[String] = List()
-		var manufacturerindex: Map[String, scala.collection.mutable.Map[Int, String]] = Map() 
+		var listings: Array[String] = Array()
+		var titleindex: Array[String] = Array()
+
+		var manufacturerindex: Map[String, ArrayBuffer[Int]] = Map() 
+
 
 		val start = System.nanoTime()
 		
@@ -89,8 +92,7 @@ object MatchMaker{
 		//Load the products files, parse each line, and then process the search for the product.
 		def createResultsFromProducts(filename: String){
 			println("Parsing products.")
-
-			
+	
 			val resultsdir = new File("./results")
 			if(!resultsdir.exists) resultsdir.mkdir() 
 
@@ -185,13 +187,14 @@ object MatchMaker{
 			println("Creating index of Manufacturers")
 
 			try {				
-				listings = Source.fromFile("./data/" + filename).getLines().toList
+				listings = Source.fromFile("./data/" + filename).getLines().toArray
 			} catch {
 			  case ex: FileNotFoundException => println("Couldn't find that file: $filename")
 			  case ex: IOException => println("Had an IOException trying to read that file")
 			}
 
 			var index : Int = 0
+			var titleindexbuffer: ArrayBuffer[String] = new ArrayBuffer()
 
 			for (currentlisting <- listings){
 				try{
@@ -212,11 +215,13 @@ object MatchMaker{
 
 					//Check if the current manufacturer has already been added to the index.
 					if (manufacturerindex.contains(cleanmanufacturer)){
-						manufacturerindex(cleanmanufacturer) += (index -> cleantitle)
+						manufacturerindex(cleanmanufacturer) += index
 						
 					}else{
-						manufacturerindex += (cleanmanufacturer -> scala.collection.mutable.Map[Int, String](index -> cleantitle))
-					}		
+						manufacturerindex += (cleanmanufacturer -> ArrayBuffer[Int](index))
+					}
+
+					titleindexbuffer += cleantitle
 				} catch {
 				  case ex: Exception => println("Error processing manufacturers: " + currentlisting)
 				}
@@ -225,21 +230,23 @@ object MatchMaker{
 				index += 1			
 			}
 
-			var titleindex: Map[String, scala.collection.mutable.Map[Int, String]] = Map() 
+			titleindex = titleindexbuffer.toArray
+
+			var titlemap: Map[String, ArrayBuffer[Int]] = Map() 
 			//Manufacturers may be mentioned within the title field, notably in cases of 3rd party suppliers.
 			//Search through all manufacturers to find other instances of the current manufacturer.
 			for (currentmanufacturer <- manufacturerindex.keySet)  {
 				for (manufacturer <- manufacturerindex.keySet) {
 					//loop through all the manufacturers looking for anything but the current manufacturer
 					if (manufacturer != currentmanufacturer) {
-						for ((index, title) <- manufacturerindex(manufacturer)){
+						for (index <- manufacturerindex(manufacturer)){
 							//Loop through all titles of this manufacturer to search for the current manufacturer
-							if (title.contains(currentmanufacturer)){
+							if (titleindex(index).contains(currentmanufacturer)){
 								//Check if the current manufacturer has already been added to the temporary index.
-								if(titleindex.contains(currentmanufacturer)) {
-									titleindex(currentmanufacturer) += (index -> title)
+								if(titlemap.contains(currentmanufacturer)) {
+									titlemap(currentmanufacturer) += index
 								}else{
-									titleindex += (currentmanufacturer -> scala.collection.mutable.Map[Int, String](index -> title))
+									titlemap += (currentmanufacturer -> ArrayBuffer[Int](index))
 								}								
 							}
 						}
@@ -248,11 +255,10 @@ object MatchMaker{
 			}
 
 			//Add resulting index to the main index
-			for(key <- titleindex.keySet){
-				for((index, title) <- titleindex(key)){
-					manufacturerindex(key) += (index -> title)	
+			for(manufacturer <- titlemap.keySet){
+				for(index <- titlemap(manufacturer)){
+					manufacturerindex(manufacturer) += index	
 				}
-				
 			}
 		}
 
@@ -267,10 +273,10 @@ object MatchMaker{
 			if(family.isEmpty){
 				//Family not included in call.  Search for normal results.
 				if (manufacturerindex.contains(cleanmanufacturer)){
-					for ((key, value) <- manufacturerindex(cleanmanufacturer)) {
+					for (index <- manufacturerindex(cleanmanufacturer)) {
 						//Search for model with a space after.  
-						if (value.contains(cleanmodel)) {	
-							matches += listings(key) + ","
+						if (titleindex(index).contains(cleanmodel)) {	
+							matches += listings(index) + ","
 						}
 					}
 					//Strip the last comma from the results string
@@ -285,9 +291,9 @@ object MatchMaker{
 				var cleanfamily = cleanString(family)
 
 				if (manufacturerindex.contains(cleanmanufacturer)){		
-					for ((key, value) <- manufacturerindex(cleanmanufacturer)){
-						if (value.contains(cleanfamily)){
-							matches += listings(key) + ","
+					for (index <- manufacturerindex(cleanmanufacturer)){
+						if (titleindex(index).contains(cleanfamily)){
+							matches += listings(index) + ","
 						}
 					}
 					//Strip the last comma from the results string
