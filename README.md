@@ -17,6 +17,11 @@ To run the compiled version of this program, type:
 
 ./go.sh
 
+Alternatively, you can run this program without building it first by typing:
+
+scala MatchMaker.scala
+
+
 --------
 This program will accept 2 JSON files as input, "products.txt" and "listings.txt" which are located in the "data" folder.  
 
