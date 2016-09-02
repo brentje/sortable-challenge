@@ -19,6 +19,7 @@
 * Alternatively, you can run this program without building it first by typing:
 *	scala MatchMaker.scala
 *
+*
 * This program will accept 2 JSON files as input, "products.txt" and "listings.txt"
 * which are located in the "data" folder.  
 *
@@ -155,7 +156,8 @@ object MatchMaker{
 							}
 						}
 
-						return results
+						return results	
+						
 					}
 				})
 			}
@@ -289,12 +291,8 @@ object MatchMaker{
 					}
 				}
 			}
-			if(matches.isEmpty){
-				return "{}"
-			}else{
-				return "{\"product_name\":\"" + productname + "\", \"listings\":[" + matches + "]}\n"	
-			}
-			
+	
+			return "{\"product_name\":\"" + productname + "\", \"listings\":[" + matches + "]}\n"				
 		}		
 		
 		//Clean strings to force capitalization and strip non-alphanumeric characters.
