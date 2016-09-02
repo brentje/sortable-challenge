@@ -9,12 +9,12 @@
 * To Build
 * --------
 * To compile this program, run the Build command.  This only needs to be run once:
-*	./build.sh
+*	sh build.sh
 *
 * To Run
 * ------	
 * To run the compiled version of this program, type:
-*	./go.sh
+*	sh go.sh
 *
 * Alternatively, you can run this program without building it first by typing:
 *	scala MatchMaker.scala
@@ -89,6 +89,10 @@ object MatchMaker{
 		//Load the products files, parse each line, and then process the search for the product.
 		def createResultsFromProducts(filename: String){
 			println("Parsing products.")
+
+			
+			val resultsdir = new File("./results")
+			if(!resultsdir.exists) resultsdir.mkdir() 
 
 			val resultsfile = new File("./results/results.txt")
 			val bw = new BufferedWriter(new FileWriter(resultsfile))
@@ -257,11 +261,10 @@ object MatchMaker{
 			//All indexed information is stored clean.  Clean input variables to match.
 			var cleanmanufacturer = cleanString(manufacturer).split(" ", 2)(0)
 			var cleanmodel = cleanString(model)
-			var cleanfamily = cleanString(family)
 				
 			var matches = ""
 
-			if(cleanfamily.isEmpty){
+			if(family.isEmpty){
 				//Family not included in call.  Search for normal results.
 				if (manufacturerindex.contains(cleanmanufacturer)){
 					for ((key, value) <- manufacturerindex(cleanmanufacturer)) {
@@ -279,6 +282,8 @@ object MatchMaker{
 			}else{
 				//Family was included with the call, meaning that we still haven't found any matches at all.
 				//Better to return something rather than nothing.  Search by Family.		
+				var cleanfamily = cleanString(family)
+
 				if (manufacturerindex.contains(cleanmanufacturer)){		
 					for ((key, value) <- manufacturerindex(cleanmanufacturer)){
 						if (value.contains(cleanfamily)){
