@@ -17,7 +17,7 @@ To run the compiled version of this program, type:
 
 ./go.sh
 
-
+--------
 This program will accept 2 JSON files as input, "products.txt" and "listings.txt" which are located in the "data" folder.  
 
 Input Files:
