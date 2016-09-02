@@ -297,8 +297,7 @@ object MatchMaker{
 		
 		//Clean strings to force capitalization and strip non-alphanumeric characters.
 		def cleanString(inputstring : String): String = {
-			var dirtystring = inputstring.toUpperCase()
-			return dirtystring.replaceAll("[^A-Z0-9 ]", "");
+			return inputstring.toUpperCase().replaceAll("[^A-Z0-9 ]", "")
 		}		
 	}
 }
