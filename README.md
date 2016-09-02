@@ -11,13 +11,13 @@ To Build
 --------
 To compile this program, run the Build command.  This only needs to be run once:
 
-./build.sh
+sh build.sh
 
 To Run
 ------	
 To run the compiled version of this program, type:
 
-./go.sh
+sh go.sh
 
 Alternatively, you can run this program without building it first by typing:
 
