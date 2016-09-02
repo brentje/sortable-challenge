@@ -25,9 +25,9 @@ scala MatchMaker.scala
 
 
 --------
-This program will accept 2 JSON files as input, "products.txt" and "listings.txt" which are located in the "data" folder.  
-
 Input Files:
+
+This program will accept 2 JSON files as input, "products.txt" and "listings.txt" which are located in the "data" folder.  
 
 product.txt
 
@@ -61,6 +61,7 @@ listing.txt
 }
 
 The files will be processed, and each record in products.txt will be searched for within the listings.txt file.  Multiple records, if available, will be pulled from listings.txt in order to create search results.
+
 --------
 Results File:
 
