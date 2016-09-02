@@ -103,7 +103,7 @@ object MatchMaker{
 			try {
 				products = Source.fromFile("./data/" + filename).getLines().toList
 			} catch {
-			  case ex: FileNotFoundException => println(s"Couldn't find that file: $filename")
+			  case ex: FileNotFoundException => println("Couldn't find that file: " + filename)
 			  case ex: IOException => println("Had an IOException trying to read that file")
 			}
 			
@@ -123,21 +123,21 @@ object MatchMaker{
 							if(currentproduct.contains("product_name")){
 								productname = currentproduct.substring(currentproduct.indexOf("product_name") + 15, currentproduct.length).split("\",\"", 2)(0)
 							}else{
-								println(s"Missing product name, ignoring: " + currentproduct)
+								println("Missing product name, ignoring: " + currentproduct)
 						  		return ""
 							}
 
 							if(currentproduct.contains("manufacturer")){
 								manufacturer = currentproduct.substring(currentproduct.indexOf("manufacturer") + 15, currentproduct.length).split("\",\"", 2)(0)
 							}else{
-								println(s"Missing manufacturer, ignoring: " + currentproduct)
+								println("Missing manufacturer, ignoring: " + currentproduct)
 						  		return ""
 							}
 
 							if(currentproduct.contains("model")){
 								model = currentproduct.substring(currentproduct.indexOf("model") + 8, currentproduct.length).split("\",\"", 2)(0)
 							}else{
-								println(s"Missing model, ignoring: " + currentproduct)
+								println("Missing model, ignoring: " + currentproduct)
 						  		return ""
 							}
 
@@ -147,7 +147,7 @@ object MatchMaker{
 							}
 						} catch {
 							//If there was a problem parsing the product, ignore and move on.
-							case ex: Exception => println(s"Error processing product: " + currentproduct)
+							case ex: Exception => println("Error processing product: " + currentproduct)
 							return ""
 						}
 						
@@ -182,12 +182,12 @@ object MatchMaker{
 		
 		//Create an index of all the manufacturers found in the listings, along with the title from each indexed record, to improve search speed.
 		def indexManufacturers(filename: String){
-			println(s"Creating index of Manufacturers")
+			println("Creating index of Manufacturers")
 
 			try {				
 				listings = Source.fromFile("./data/" + filename).getLines().toList
 			} catch {
-			  case ex: FileNotFoundException => println(s"Couldn't find that file: $filename")
+			  case ex: FileNotFoundException => println("Couldn't find that file: $filename")
 			  case ex: IOException => println("Had an IOException trying to read that file")
 			}
 
@@ -218,7 +218,7 @@ object MatchMaker{
 						manufacturerindex += (cleanmanufacturer -> scala.collection.mutable.Map[Int, String](index -> cleantitle))
 					}		
 				} catch {
-				  case ex: Exception => println(s"Error processing manufacturers: " + currentlisting)
+				  case ex: Exception => println("Error processing manufacturers: " + currentlisting)
 				}
 
 				//Whether the listing line processed properly or not, increment the index to stay in sequence with the file.
