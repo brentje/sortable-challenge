@@ -163,7 +163,7 @@ object MatchMaker{
 			}
 
 			//Pull the thread results in sequence and write the results to the results file.
-			futures.foreach(f => (if(!(f.get.toString == "{}") ){bw.write(f.get.toString)} ) )
+			futures.foreach(f => (bw.write(f.get.toString)))
 			
 			es.shutdown()
 			bw.close()
