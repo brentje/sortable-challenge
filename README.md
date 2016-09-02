@@ -8,12 +8,12 @@ Author: Brent Englehart
 To Build
 --------
 To compile this program, run the Build command.  This only needs to be run once:
-	./build.sh
+./build.sh
 
 To Run
 ------	
 To run the compiled version of this program, type:
-	./go.sh
+./go.sh
 
 
 This program will accept 2 JSON files as input, "products.txt" and "listings.txt"
