@@ -123,7 +123,6 @@ object MatchMaker{
 					//Check if the current manufacturer has already been added to the index.
 					if (manufacturerindex.contains(cleanmanufacturer)){
 						manufacturerindex(cleanmanufacturer) += index
-						
 					}else{
 						manufacturerindex += (cleanmanufacturer -> ArrayBuffer[Int](index))
 					}
@@ -163,9 +162,7 @@ object MatchMaker{
 
 			//Add resulting index to the main index
 			for(manufacturer <- titlemap.keySet){
-				for(index <- titlemap(manufacturer)){
-					manufacturerindex(manufacturer) += index	
-				}
+				manufacturerindex(manufacturer) ++= titlemap(manufacturer)
 			}
 		}
 
