@@ -207,21 +207,21 @@ object MatchMaker{
 								productname = currentproduct.substring(currentproduct.indexOf("product_name") + 15, currentproduct.length).split("\",\"", 2)(0)
 							}else{
 								println("Missing product name, ignoring: " + currentproduct)
-						  		return ""
+						  		return "{\"product_name\":\"MISSING\", \"listings\":[]}\n"
 							}
 
 							if(currentproduct.contains("manufacturer")){
 								manufacturer = currentproduct.substring(currentproduct.indexOf("manufacturer") + 15, currentproduct.length).split("\",\"", 2)(0)
 							}else{
 								println("Missing manufacturer, ignoring: " + currentproduct)
-						  		return ""
+						  		return "{\"product_name\":\"" + productname + "\", \"listings\":[]}\n"
 							}
 
 							if(currentproduct.contains("model")){
 								model = currentproduct.substring(currentproduct.indexOf("model") + 8, currentproduct.length).split("\",\"", 2)(0)
 							}else{
 								println("Missing model, ignoring: " + currentproduct)
-						  		return ""
+						  		return "{\"product_name\":\"" + productname + "\", \"listings\":[]}\n"
 							}
 
 							//Family name is optional.  
@@ -231,17 +231,10 @@ object MatchMaker{
 						} catch {
 							//If there was a problem parsing the product, ignore and move on.
 							case ex: Exception => println("Error processing product: " + currentproduct)
-							return ""
+							return "{\"product_name\":\"MISSING\", \"listings\":[]}\n"
 						}
 						
 						var results = getMatches(productname, manufacturer, model, family)
-
-						// if (results !=){
-						// 	//No results were found.  Search by family instead.
-						// 	if (!family.isEmpty){
-						// 		results = getMatches(productname, manufacturer, model, )	
-						// 	}
-						// }
 
 						return results	
 						
@@ -256,58 +249,49 @@ object MatchMaker{
 			bw.close()
 
 		}
-		
-		//Load the listings file
-		// def loadListings(filename: String){
-		// 	println(s"Loading Listings file")
-
-		// }
-		
+				
 		//Create a string containing the JSON results of our search
 		def getMatches(productname : String, manufacturer : String, model : String, family : String = ""): String = {
 			//All indexed information is stored clean.  Clean input variables to match.
 			var cleanmanufacturer = cleanString(manufacturer).split(" ", 2)(0)
 			var cleanmodel = cleanString(model)
+			var cleanfamily = cleanString(family)
 				
 			var matches = ""
 		
-			//Family not included in call.  Search for normal results.
+			//Search for the product model within the index.
 			if (manufacturerindex.contains(cleanmanufacturer)){
+				var extraresultscount = 0
+
 				for (index <- manufacturerindex(cleanmanufacturer)) {
-					//Search for model with a space after.  
-					if (titleindex(index).contains(cleanmodel)) {	
+					if (titleindex(index).contains(cleanmodel)){
+						//Positive hit.  We found the model within a listing that also contained the manufacturer.
 						matches += listings(index) + ","
-					}
+					}else if(extraresultscount < 5){
+						//Check for the family but only allow 5 fuzzy results to be added.  
+						//We may miss some correct matches, but this reduces false positives.
+						if (!family.isEmpty){
+							//Strip the manufacturer from the current listing to check for the product manufacturer more precisely 
+							var listingmanufacturer = cleanString(listings(index).substring(listings(index).indexOf("manufacturer") + 15, listings(index).length).split("\",\"", 2)(0))
+
+							//If the product model was not found, this could be a 3rd party manufacturer that makes accessories for a series of products.
+							//This may also be a mis-labeled manufacturer within the listings, where the correct manufacturer is stated first within the title, 
+							//which we want to ignore since the model wasn't found for this listing.
+							if (!listingmanufacturer.contains(cleanmanufacturer) 
+							&& titleindex(index).indexOf(cleanmanufacturer) > 0  
+							&& titleindex(index).contains(cleanfamily) ){
+								matches += listings(index) + ","
+								extraresultscount += 1
+							}
+						}
+					}			
 				}
+
 				//Strip the last comma from the results string
 				if (!matches.isEmpty){
 					matches = matches.split(".$")(0)
 				}
 
-			}
-
-			if(matches.isEmpty && !family.isEmpty){
-				//Family was included with the call and no matches hae been found yet.
-				//Better to return something rather than nothing.  Search by Family.		
-				var cleanfamily = cleanString(family)
-
-				if (manufacturerindex.contains(cleanmanufacturer)){		
-					for (index <- manufacturerindex(cleanmanufacturer)){
-						var listingmanufacturer = listings(index).substring(listings(index).indexOf("manufacturer") + 15, listings(index).length).split("\",\"", 2)(0)
-						listingmanufacturer = cleanString(listingmanufacturer).split(" ", 2)(0)
-						
-						if(cleanmanufacturer != listingmanufacturer){
-							if (titleindex(index).contains(cleanfamily)){
-
-								matches += listings(index) + ","
-							}
-						}
-					}
-					//Strip the last comma from the results string
-					if (!matches.isEmpty){
-						matches = matches.split(".$")(0)
-					}
-				}
 			}
 	
 			return "{\"product_name\":\"" + productname + "\", \"listings\":[" + matches + "]}\n"				
