@@ -88,100 +88,7 @@ object MatchMaker{
 		createResultsFromProducts("products.txt")
 		println("Total Time: " + ((System.nanoTime() - start )/ 1e9) + " seconds.")
 
-		//Main function for getting results.
-		//Load the products files, parse each line, and then process the search for the product.
-		def createResultsFromProducts(filename: String){
-			println("Parsing products.")
-	
-			val resultsdir = new File("./results")
-			if(!resultsdir.exists) resultsdir.mkdir() 
 
-			val resultsfile = new File("./results/results.txt")
-			val bw = new BufferedWriter(new FileWriter(resultsfile))
-
-			var products: List[String] = List()
-			
-			//Load the products file
-			try {
-				products = Source.fromFile("./data/" + filename).getLines().toList
-			} catch {
-			  case ex: FileNotFoundException => println("Couldn't find that file: " + filename)
-			  case ex: IOException => println("Had an IOException trying to read that file")
-			}
-			
-			//Create threads for each product record to improve processing speed.  Speed will increase based on number of CPU cores available.
-			val es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
-			val futures = for (currentproduct <- products) yield {
-				es.submit(new Callable {
-					def call:String = {
-						
-						var productname = ""
-						var manufacturer = ""
-						var model = ""
-						var family = ""
-						
-						//Parse the JSON line into it's individual fields.
-						try{
-							if(currentproduct.contains("product_name")){
-								productname = currentproduct.substring(currentproduct.indexOf("product_name") + 15, currentproduct.length).split("\",\"", 2)(0)
-							}else{
-								println("Missing product name, ignoring: " + currentproduct)
-						  		return ""
-							}
-
-							if(currentproduct.contains("manufacturer")){
-								manufacturer = currentproduct.substring(currentproduct.indexOf("manufacturer") + 15, currentproduct.length).split("\",\"", 2)(0)
-							}else{
-								println("Missing manufacturer, ignoring: " + currentproduct)
-						  		return ""
-							}
-
-							if(currentproduct.contains("model")){
-								model = currentproduct.substring(currentproduct.indexOf("model") + 8, currentproduct.length).split("\",\"", 2)(0)
-							}else{
-								println("Missing model, ignoring: " + currentproduct)
-						  		return ""
-							}
-
-							//Family name is optional.  
-							if(currentproduct.contains("family")){
-								family = currentproduct.substring(currentproduct.indexOf("family") + 9, currentproduct.length).split("\",\"", 2)(0)
-							}
-						} catch {
-							//If there was a problem parsing the product, ignore and move on.
-							case ex: Exception => println("Error processing product: " + currentproduct)
-							return ""
-						}
-						
-						var results = getMatches(productname, manufacturer, model)
-
-						if (results.isEmpty){
-							//No results were found.  Search by family instead.
-							if (!family.isEmpty){
-								results = getMatches(productname, manufacturer, model, family)	
-							}
-						}
-
-						return results	
-						
-					}
-				})
-			}
-
-			//Pull the thread results in sequence and write the results to the results file.
-			futures.foreach(f => (bw.write(f.get.toString)))
-			
-			es.shutdown()
-			bw.close()
-
-		}
-		
-		//Load the listings file
-		// def loadListings(filename: String){
-		// 	println(s"Loading Listings file")
-
-		// }
-		
 		//Create an index of all the manufacturers found in the listings, along with the title from each indexed record, to improve search speed.
 		def indexManufacturers(filename: String){
 			println("Creating index of Manufacturers")
@@ -262,6 +169,100 @@ object MatchMaker{
 			}
 		}
 
+		//Main function for getting results.
+		//Load the products files, parse each line, and then process the search for the product.
+		def createResultsFromProducts(filename: String){
+			println("Parsing products.")
+	
+			val resultsdir = new File("./results")
+			if(!resultsdir.exists) resultsdir.mkdir() 
+
+			val resultsfile = new File("./results/results.txt")
+			val bw = new BufferedWriter(new FileWriter(resultsfile))
+
+			var products: List[String] = List()
+			
+			//Load the products file
+			try {
+				products = Source.fromFile("./data/" + filename).getLines().toList
+			} catch {
+			  case ex: FileNotFoundException => println("Couldn't find that file: " + filename)
+			  case ex: IOException => println("Had an IOException trying to read that file")
+			}
+			
+			//Create threads for each product record to improve processing speed.  Speed will increase based on number of CPU cores available.
+			val es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+			val futures = for (currentproduct <- products) yield {
+				es.submit(new Callable {
+					def call:String = {
+						
+						var productname = ""
+						var manufacturer = ""
+						var model = ""
+						var family = ""
+						
+						//Parse the JSON line into it's individual fields.
+						try{
+							if(currentproduct.contains("product_name")){
+								productname = currentproduct.substring(currentproduct.indexOf("product_name") + 15, currentproduct.length).split("\",\"", 2)(0)
+							}else{
+								println("Missing product name, ignoring: " + currentproduct)
+						  		return ""
+							}
+
+							if(currentproduct.contains("manufacturer")){
+								manufacturer = currentproduct.substring(currentproduct.indexOf("manufacturer") + 15, currentproduct.length).split("\",\"", 2)(0)
+							}else{
+								println("Missing manufacturer, ignoring: " + currentproduct)
+						  		return ""
+							}
+
+							if(currentproduct.contains("model")){
+								model = currentproduct.substring(currentproduct.indexOf("model") + 8, currentproduct.length).split("\",\"", 2)(0)
+							}else{
+								println("Missing model, ignoring: " + currentproduct)
+						  		return ""
+							}
+
+							//Family name is optional.  
+							if(currentproduct.contains("family")){
+								family = currentproduct.substring(currentproduct.indexOf("family") + 9, currentproduct.length).split("\",\"", 2)(0)
+							}
+						} catch {
+							//If there was a problem parsing the product, ignore and move on.
+							case ex: Exception => println("Error processing product: " + currentproduct)
+							return ""
+						}
+						
+						var results = getMatches(productname, manufacturer, model, family)
+
+						// if (results !=){
+						// 	//No results were found.  Search by family instead.
+						// 	if (!family.isEmpty){
+						// 		results = getMatches(productname, manufacturer, model, )	
+						// 	}
+						// }
+
+						return results	
+						
+					}
+				})
+			}
+
+			//Pull the thread results in sequence and write the results to the results file.
+			futures.foreach(f => (bw.write(f.get.toString)))
+			
+			es.shutdown()
+			bw.close()
+
+		}
+		
+		//Load the listings file
+		// def loadListings(filename: String){
+		// 	println(s"Loading Listings file")
+
+		// }
+		
 		//Create a string containing the JSON results of our search
 		def getMatches(productname : String, manufacturer : String, model : String, family : String = ""): String = {
 			//All indexed information is stored clean.  Clean input variables to match.
@@ -269,31 +270,37 @@ object MatchMaker{
 			var cleanmodel = cleanString(model)
 				
 			var matches = ""
-
-			if(family.isEmpty){
-				//Family not included in call.  Search for normal results.
-				if (manufacturerindex.contains(cleanmanufacturer)){
-					for (index <- manufacturerindex(cleanmanufacturer)) {
-						//Search for model with a space after.  
-						if (titleindex(index).contains(cleanmodel)) {	
-							matches += listings(index) + ","
-						}
+		
+			//Family not included in call.  Search for normal results.
+			if (manufacturerindex.contains(cleanmanufacturer)){
+				for (index <- manufacturerindex(cleanmanufacturer)) {
+					//Search for model with a space after.  
+					if (titleindex(index).contains(cleanmodel)) {	
+						matches += listings(index) + ","
 					}
-					//Strip the last comma from the results string
-					if (!matches.isEmpty){
-						matches = matches.split(".$")(0)
-					}
-
 				}
-			}else{
-				//Family was included with the call, meaning that we still haven't found any matches at all.
+				//Strip the last comma from the results string
+				if (!matches.isEmpty){
+					matches = matches.split(".$")(0)
+				}
+
+			}
+
+			if(matches.isEmpty && !family.isEmpty){
+				//Family was included with the call and no matches hae been found yet.
 				//Better to return something rather than nothing.  Search by Family.		
 				var cleanfamily = cleanString(family)
 
 				if (manufacturerindex.contains(cleanmanufacturer)){		
 					for (index <- manufacturerindex(cleanmanufacturer)){
-						if (titleindex(index).contains(cleanfamily)){
-							matches += listings(index) + ","
+						var listingmanufacturer = listings(index).substring(listings(index).indexOf("manufacturer") + 15, listings(index).length).split("\",\"", 2)(0)
+						listingmanufacturer = cleanString(listingmanufacturer).split(" ", 2)(0)
+						
+						if(cleanmanufacturer != listingmanufacturer){
+							if (titleindex(index).contains(cleanfamily)){
+
+								matches += listings(index) + ","
+							}
 						}
 					}
 					//Strip the last comma from the results string
