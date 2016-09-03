@@ -228,16 +228,13 @@ object MatchMaker{
 							if(currentproduct.contains("family")){
 								family = currentproduct.substring(currentproduct.indexOf("family") + 9, currentproduct.length).split("\",\"", 2)(0)
 							}
+
+							return getMatches(productname, manufacturer, model, family)
 						} catch {
 							//If there was a problem parsing the product, ignore and move on.
 							case ex: Exception => println("Error processing product: " + currentproduct)
 							return "{\"product_name\":\"MISSING\", \"listings\":[]}\n"
 						}
-						
-						var results = getMatches(productname, manufacturer, model, family)
-
-						return results	
-						
 					}
 				})
 			}
