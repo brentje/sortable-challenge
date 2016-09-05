@@ -6,6 +6,8 @@
 *
 * Author: Brent Englehart
 *
+* Originally built for Scala 2.9
+*
 * To Build
 * --------
 * To compile this program, run the Build command.  This only needs to be run once:
@@ -149,11 +151,13 @@ object MatchMaker{
 							//Loop through all titles of this manufacturer to search for the current manufacturer
 							if (titleindex(index).contains(currentmanufacturer)){
 								//Check if the current manufacturer has already been added to the temporary index.
-								if(titlemap.contains(currentmanufacturer)) {
-									titlemap(currentmanufacturer) += index
-								}else{
-									titlemap += (currentmanufacturer -> ArrayBuffer[Int](index))
-								}								
+								if(!manufacturerindex(currentmanufacturer).contains(index)) {
+									if(titlemap.contains(currentmanufacturer)) {
+										titlemap(currentmanufacturer) += index
+									}else{
+										titlemap += (currentmanufacturer -> ArrayBuffer[Int](index))
+									}
+								}
 							}
 						}
 					}
@@ -261,23 +265,6 @@ object MatchMaker{
 					if (titleindex(index).contains(cleanmodel)){
 						//Positive hit.  We found the model within a listing that also contained the manufacturer.
 						matches += listings(index) + ","
-					}else if(extraresultscount < 5){
-						//Check for the family but only allow 5 fuzzy results to be added.  
-						//We may miss some correct matches, but this reduces false positives.
-						if (!family.isEmpty){
-							//Strip the manufacturer from the current listing to check for the product manufacturer more precisely 
-							var listingmanufacturer = cleanString(listings(index).substring(listings(index).indexOf("manufacturer") + 15, listings(index).length).split("\",\"", 2)(0))
-
-							//If the product model was not found, this could be a 3rd party manufacturer that makes accessories for a series of products.
-							//This may also be a mis-labeled manufacturer within the listings, where the correct manufacturer is stated first within the title, 
-							//which we want to ignore since the model wasn't found for this listing.
-							if (!listingmanufacturer.contains(cleanmanufacturer) 
-							&& titleindex(index).indexOf(cleanmanufacturer) > 0  
-							&& titleindex(index).contains(cleanfamily) ){
-								matches += listings(index) + ","
-								extraresultscount += 1
-							}
-						}
 					}			
 				}
 
