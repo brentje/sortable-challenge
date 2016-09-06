@@ -334,7 +334,7 @@ object MatchMaker{
 				for (index <- manufacturerindex(cleanmanufacturer)) {
 					if (titleindex(index).contains(cleanmodel)){
 						//Positive hit.  We found the model within a listing that also contained the manufacturer.
-						matches += listings(index)
+						if(!matches.contains(listings(index))) matches += listings(index)
 					}			
 				}
 
