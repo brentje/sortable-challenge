@@ -146,41 +146,41 @@ object MatchMaker{
 			}
 
 			titleindex = titleindexbuffer.toArray
-
-			//Create a temporary index to prevent slowing down processing of the title index.
-			var titlemap: Map[String, ArrayBuffer[Int]] = Map() 
-
-			//Manufacturers may be mentioned within the title field, notably in cases of 3rd party suppliers.
+	
+			//Manufacturers may be mentioned within the title field, notably in cases of 3rd party suppliers.	
 			//Search through all manufacturers to find other instances of the current manufacturer.
-			for (currentmanufacturer <- manufacturerindex.keySet)  {
-				for (manufacturer <- manufacturerindex.keySet) {
-					//loop through all the manufacturers looking for anything but the current manufacturer
-					if (manufacturer != currentmanufacturer) {
-						for (index <- manufacturerindex(manufacturer)){
-							//Loop through all titles of this manufacturer to search for the current manufacturer
 
-							//Match any manufacturer with words that only starts with the current manufacturer.  
-							//This avoids matching words simply containing the current manufacturer (i.e. "CC" should match "CC Industries" but not "accesories")
-							if (titleindex(index).matches("[^A-Z0-9]*(" + currentmanufacturer + ").*")){
-								//Check if the current manufacturer has already been added to the temporary index.
-								if(!manufacturerindex(currentmanufacturer).contains(index)) {
-									if(titlemap.contains(currentmanufacturer)) {
-										titlemap(currentmanufacturer) += index
-									}else{
-										titlemap += (currentmanufacturer -> ArrayBuffer[Int](index))
+			//Create threads for each manufacturer record to improve processing speed.
+			val es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+			val futures = for (currentmanufacturer <- manufacturerindex.keySet) yield {
+				es.submit(new Callable {
+					def call:(String, ArrayBuffer[Int]) = {			
+						var titleindexarray: ArrayBuffer[Int] = new ArrayBuffer()
+
+						for (manufacturer <- manufacturerindex.keySet) {
+							//loop through all the manufacturers looking for anything but the current manufacturer
+							if (manufacturer != currentmanufacturer) {
+								for (index <- manufacturerindex(manufacturer)){
+									//Loop through all titles of this manufacturer to search for the current manufacturer
+									
+									//Match any manufacturer with words that only starts with the current manufacturer.  
+									//This avoids matching words simply containing the current manufacturer (i.e. "CC" should match "CC Industries" but not "accesories")
+									if (titleindex(index).matches("[^A-Z0-9]*(" + currentmanufacturer + ").*")){
+										//Check if the current manufacturer has already been added to the temporary index.
+										if (!manufacturerindex(currentmanufacturer).contains(index)) titleindexarray += index
 									}
 								}
 							}
 						}
+						return (currentmanufacturer, titleindexarray)
 					}
-				}
+				})
 			}
 
-			//Add resulting index to the main index
-			for(manufacturer <- titlemap.keySet){
-				manufacturerindex(manufacturer) ++= titlemap(manufacturer)
-			}
 
+			//Pull the thread results in sequence and write the results to the results file.
+			futures.foreach(f => {var (manufacturer, indexarray) = f.get; manufacturerindex(manufacturer.toString) ++= indexarray.asInstanceOf[ArrayBuffer[Int]] } )
+			es.shutdown()	
 		}	
 		
 		def indexProducts(filename: String){
@@ -194,32 +194,53 @@ object MatchMaker{
 			  case ex: IOException => println("Had an IOException trying to read that file")
 			}
 
-			var familymap: Map[String, ArrayBuffer[Int]] = Map()
+			//Create threads for each product record to improve processing speed.
+			val es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+			val futures = for (currentproduct <- products) yield {
+				es.submit(new Callable {
+					def call:(String, ArrayBuffer[Int]) = {			
+						var familyindexarray: ArrayBuffer[Int] = new ArrayBuffer()
 
-			for (currentproduct <- products){
-				//Clean the manufacturer and title to force capitalization and strip non-alphanumeric characters.
-				var cleanmanufacturer = currentproduct.substring(currentproduct.indexOf("manufacturer") + 15, currentproduct.length).split("\",\"", 2)(0)
-				var cleanfamily = currentproduct.substring(currentproduct.indexOf("family") + 9, currentproduct.length).split("\",\"", 2)(0)
-				
-				//Just take the first word of the manufacturer, to strip out unnecessary information 
-				cleanmanufacturer = cleanString(cleanmanufacturer).split(" ", 2)(0)
-				cleanfamily = cleanString(cleanfamily) 
+						//Clean the manufacturer and title to force capitalization and strip non-alphanumeric characters.
+						var cleanmanufacturer = currentproduct.substring(currentproduct.indexOf("manufacturer") + 15, currentproduct.length).split("\",\"", 2)(0)
+						var cleanfamily = currentproduct.substring(currentproduct.indexOf("family") + 9, currentproduct.length).split("\",\"", 2)(0)
+						
+						//Just take the first word of the manufacturer, to strip out unnecessary information 
+						cleanmanufacturer = cleanString(cleanmanufacturer).split(" ", 2)(0)
+						cleanfamily = cleanString(cleanfamily) 
 
-				if (!cleanfamily.isEmpty){
-					for (index <- 0 to titleindex.length - 1){
-						//Loop through all titles of this manufacturer to search for the current manufacturer
-						if (titleindex(index).contains(cleanfamily)){
-							//Check if the current manufacturer has already been added to the temporary index.
-							if(!manufacturerindex.contains(cleanmanufacturer)) {
-								println("Adding new manufacturer: " + cleanmanufacturer)
-								manufacturerindex += (cleanmanufacturer -> ArrayBuffer[Int](index))
-							}else if(!(manufacturerindex(cleanmanufacturer).contains(index))) {
-								manufacturerindex(cleanmanufacturer) += index	
+						if (!cleanfamily.isEmpty){
+							for (index <- 0 to titleindex.length - 1){
+								//Loop through all titles of this manufacturer to search for the current manufacturer
+								if (titleindex(index).contains(cleanfamily)){
+									//Check if the current manufacturer has already been added to the temporary index.
+									if(!manufacturerindex.contains(cleanmanufacturer)) {
+										familyindexarray += index
+									}else if(!manufacturerindex(cleanmanufacturer).contains(index) && !familyindexarray.contains(index)) {
+										familyindexarray += index
+									}
+								}
 							}
 						}
+
+						return (cleanmanufacturer, familyindexarray)
 					}
-				}
+				})
 			}
+
+			//Pull the thread results in sequence and write the results to the results file.
+			futures.foreach(f => {
+				var (manufacturer, indexarray) = f.get; 
+				if(manufacturerindex.contains(manufacturer.toString)) {
+					for (index <- indexarray.asInstanceOf[ArrayBuffer[Int]]){
+						if(!manufacturerindex(manufacturer.toString).contains(index)) manufacturerindex(manufacturer.toString) += index
+					}
+				}else{
+					manufacturerindex += (manufacturer.toString -> indexarray.asInstanceOf[ArrayBuffer[Int]])
+					
+				}
+			})
+			es.shutdown()	
 		}
 
 
