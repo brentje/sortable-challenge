@@ -76,20 +76,27 @@ import java.io._
 object MatchMaker{
 	def main(args: Array[String]){
 
+		val commonwords:List[String] = List("AND", "IN", "FOR", "WITH", "W", "ME", "MY", "CAMERA")
+
+		var products: List[String] = List()
+
 		var listings: Array[String] = Array()
 		var titleindex: Array[String] = Array()
-
 		var manufacturerindex: Map[String, ArrayBuffer[Int]] = Map() 
 
 
 		val start = System.nanoTime()
 		
 		indexManufacturers("listings.txt")
-		println("Indexing Time: "+ ((System.nanoTime() - start )/ 1e9) + " seconds.")
-		
-		createResultsFromProducts("products.txt")
-		println("Total Time: " + ((System.nanoTime() - start )/ 1e9) + " seconds.")
 
+		println("Manufacturer Indexing Time: "+ ((System.nanoTime() - start )/ 1e9) + " seconds.")
+		
+		indexProducts("products.txt")
+
+		println("Products Indexing Time: "+ ((System.nanoTime() - start )/ 1e9) + " seconds.")
+		
+		createResultsFromProducts()
+		println("Total Time: " + ((System.nanoTime() - start )/ 1e9) + " seconds.")
 
 		//Create an index of all the manufacturers found in the listings, along with the title from each indexed record, to improve search speed.
 		def indexManufacturers(filename: String){
@@ -140,7 +147,9 @@ object MatchMaker{
 
 			titleindex = titleindexbuffer.toArray
 
+			//Create a temporary index to prevent slowing down processing of the title index.
 			var titlemap: Map[String, ArrayBuffer[Int]] = Map() 
+
 			//Manufacturers may be mentioned within the title field, notably in cases of 3rd party suppliers.
 			//Search through all manufacturers to find other instances of the current manufacturer.
 			for (currentmanufacturer <- manufacturerindex.keySet)  {
@@ -149,7 +158,10 @@ object MatchMaker{
 					if (manufacturer != currentmanufacturer) {
 						for (index <- manufacturerindex(manufacturer)){
 							//Loop through all titles of this manufacturer to search for the current manufacturer
-							if (titleindex(index).contains(currentmanufacturer)){
+
+							//Match any manufacturer with words that only starts with the current manufacturer.  
+							//This avoids matching words simply containing the current manufacturer (i.e. "CC" should match "CC Industries" but not "accesories")
+							if (titleindex(index).matches("[^A-Z0-9]*(" + currentmanufacturer + ").*")){
 								//Check if the current manufacturer has already been added to the temporary index.
 								if(!manufacturerindex(currentmanufacturer).contains(index)) {
 									if(titlemap.contains(currentmanufacturer)) {
@@ -168,11 +180,54 @@ object MatchMaker{
 			for(manufacturer <- titlemap.keySet){
 				manufacturerindex(manufacturer) ++= titlemap(manufacturer)
 			}
+
+		}	
+		
+		def indexProducts(filename: String){
+			println("Creating index of Products")
+
+			//Load the products file
+			try {
+				products = Source.fromFile("./data/" + filename).getLines().toList
+			} catch {
+			  case ex: FileNotFoundException => println("Couldn't find that file: " + filename)
+			  case ex: IOException => println("Had an IOException trying to read that file")
+			}
+
+			var familymap: Map[String, ArrayBuffer[Int]] = Map()
+
+			for (currentproduct <- products){
+				//Clean the manufacturer and title to force capitalization and strip non-alphanumeric characters.
+				var cleanmanufacturer = currentproduct.substring(currentproduct.indexOf("manufacturer") + 15, currentproduct.length).split("\",\"", 2)(0)
+				var cleanfamily = currentproduct.substring(currentproduct.indexOf("family") + 9, currentproduct.length).split("\",\"", 2)(0)
+				
+				//Just take the first word of the manufacturer, to strip out unnecessary information 
+				cleanmanufacturer = cleanString(cleanmanufacturer).split(" ", 2)(0)
+				cleanfamily = cleanString(cleanfamily) 
+
+				if (!cleanfamily.isEmpty){
+					for (index <- 0 to titleindex.length - 1){
+						//Loop through all titles of this manufacturer to search for the current manufacturer
+						if (titleindex(index).contains(cleanfamily)){
+							//Check if the current manufacturer has already been added to the temporary index.
+							if(!manufacturerindex.contains(cleanmanufacturer)) {
+								println("Adding new manufacturer: " + cleanmanufacturer)
+								manufacturerindex += (cleanmanufacturer -> ArrayBuffer[Int](index))
+							}else if(!(manufacturerindex(cleanmanufacturer).contains(index))) {
+								manufacturerindex(cleanmanufacturer) += index	
+							}
+						}
+					}
+				}
+			}
 		}
+
+
+		
 
 		//Main function for getting results.
 		//Load the products files, parse each line, and then process the search for the product.
-		def createResultsFromProducts(filename: String){
+		def createResultsFromProducts(){
 			println("Parsing products.")
 	
 			val resultsdir = new File("./results")
@@ -181,15 +236,7 @@ object MatchMaker{
 			val resultsfile = new File("./results/results.txt")
 			val bw = new BufferedWriter(new FileWriter(resultsfile))
 
-			var products: List[String] = List()
-			
-			//Load the products file
-			try {
-				products = Source.fromFile("./data/" + filename).getLines().toList
-			} catch {
-			  case ex: FileNotFoundException => println("Couldn't find that file: " + filename)
-			  case ex: IOException => println("Had an IOException trying to read that file")
-			}
+
 			
 			//Create threads for each product record to improve processing speed.  Speed will increase based on number of CPU cores available.
 			val es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
@@ -245,7 +292,6 @@ object MatchMaker{
 			
 			es.shutdown()
 			bw.close()
-
 		}
 				
 		//Create a string containing the JSON results of our search
@@ -255,7 +301,10 @@ object MatchMaker{
 			var cleanmodel = cleanString(model)
 			var cleanfamily = cleanString(family)
 				
-			var matches = ""
+			var results = ""
+
+			var matches:ArrayBuffer[String] = ArrayBuffer()
+
 		
 			//Search for the product model within the index.
 			if (manufacturerindex.contains(cleanmanufacturer)){
@@ -264,23 +313,23 @@ object MatchMaker{
 				for (index <- manufacturerindex(cleanmanufacturer)) {
 					if (titleindex(index).contains(cleanmodel)){
 						//Positive hit.  We found the model within a listing that also contained the manufacturer.
-						matches += listings(index) + ","
+						matches += listings(index)
 					}			
 				}
 
 				//Strip the last comma from the results string
 				if (!matches.isEmpty){
-					matches = matches.split(".$")(0)
+					results = matches.toString.substring(12, matches.toString.length - 1)
 				}
 
 			}
 	
-			return "{\"product_name\":\"" + productname + "\", \"listings\":[" + matches + "]}\n"				
+			return "{\"product_name\":\"" + productname + "\", \"listings\":[" + results + "]}\n"				
 		}		
 		
 		//Clean strings to force capitalization and strip non-alphanumeric characters.
 		def cleanString(inputstring : String): String = {
-			return inputstring.toUpperCase().replaceAll("[^A-Z0-9 ]", "")
+			return inputstring.toUpperCase().replaceAll("[^A-Z0-9 .]", "").replaceAll("[^A-Z0-9](" + commonwords.mkString(")[^A-Z0-9]|[^A-Z0-9](") + ")[^A-Z0-9]", "")
 		}		
 	}
 }
